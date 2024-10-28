@@ -13,7 +13,7 @@ pygame.mixer.init()
 pygame.mixer.music.load('D:\\pythonpro\\chor.mp3')  # Ensure the path to the sound file is correctly specified
 
 detector = PoseDetector()
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(0) # To be changed with cameras' rstp link
 
 motion_threshold = 10
 modec = False
