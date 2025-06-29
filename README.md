@@ -1,85 +1,269 @@
-
-# Room Entry Alert System
-
-## Overview
-
-This project is a Room Entry Alert System that uses a webcam to detect human motion based on body posture and sends an email alert when someone enters the room during a specified time range. Additionally, a sound alarm will play to notify the user of any detected motion.
-
-## Features
-
-- **Pose Detection:** The system uses OpenCV and the PoseDetector module from `cvzone` to detect human posture.
-- **Real-Time Video Capture:** The webcam feed is continuously monitored for motion detection.
-- **Email Alerts:** Upon detecting motion, an email alert is sent to a specified address.
-- **Sound Alarm:** An alarm sound plays when motion is detected, alerting the user audibly.
+# Raspberry Pi Security Camera Setup Guide
 
 ## Prerequisites
 
-Before you begin, ensure you have the following installed:
+### Hardware Requirements
+- Raspberry Pi 4 (recommended) or Pi 3B+
+- Raspberry Pi Camera Module or USB Camera
+- MicroSD card (32GB recommended)
+- Stable internet connection
 
-- Python 3.x
-- OpenCV (`cv2`)
-- cvzone (`PoseModule`)
-- Pygame (`pygame`)
-- smtplib (Standard Python library)
-- A valid Gmail account for sending emails
+### Software Requirements
+- Raspberry Pi OS (latest version)
+- Python 3.7+
 
-## Installation
+## Installation Steps
 
-1. Clone or download the project files to your local machine.
+### 1. Install Required Python Packages
 
-2. Install the required Python libraries using pip:
-   ```bash
-   pip install opencv-python-headless cvzone pygame
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Python packages
+pip3 install opencv-python numpy requests picamera2
+
+# Install additional system packages
+sudo apt install python3-opencv python3-numpy -y
+```
+
+### 2. Enable Camera
+
+```bash
+# Enable camera interface
+sudo raspi-config
+# Navigate to Interface Options > Camera > Enable
+
+# Reboot
+sudo reboot
+```
+
+### 3. Create Project Directory
+
+```bash
+mkdir -p /home/pi/security_camera
+cd /home/pi/security_camera
+
+# Create directories
+mkdir -p detections logs
+```
+
+### 4. Create Configuration File
+
+Create a file named `config.json` in your project directory:
+
+```json
+{
+    "monitoring_start": "18:00",
+    "monitoring_end": "08:00",
+    "alert_cooldown": 300,
+    "detection_threshold": 0.5,
+    "min_detection_area": 3000,
+    "email": {
+        "enabled": true,
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 587,
+        "sender_email": "your_email@gmail.com",
+        "sender_password": "your_app_password",
+        "recipient_email": "alert@example.com"
+    },
+    "pushbullet": {
+        "enabled": false,
+        "api_key": "your_pushbullet_api_key"
+    },
+    "telegram": {
+        "enabled": false,
+        "bot_token": "your_bot_token",
+        "chat_id": "your_chat_id"
+    }
+}
+```
+
+## Alert Setup Options
+
+### Option 1: Email Alerts (Recommended)
+
+1. **Enable 2-Factor Authentication** on your Gmail account
+2. **Generate App Password**:
+   - Go to Google Account settings
+   - Security > 2-Step Verification > App passwords
+   - Generate password for "Mail"
+3. **Update config.json**:
+   ```json
+   "email": {
+       "enabled": true,
+       "smtp_server": "smtp.gmail.com",
+       "smtp_port": 587,
+       "sender_email": "youremail@gmail.com",
+       "sender_password": "your_16_character_app_password",
+       "recipient_email": "recipient@example.com"
+   }
    ```
 
-3. Ensure you have a working webcam connected to your computer.
+### Option 2: Pushbullet Notifications
 
-4. Replace the Gmail login credentials and the recipient email in the script with your own.
-
-## Usage
-
-1. **Set Up the Sound File:**
-   - Ensure the alarm sound file (`chor.mp3`) is located in the correct directory specified in the script (`D:\\pythonpro\\chor.mp3`).
-   - Update the file path in the script if the sound file is located in a different directory.
-
-2. **Run the Script:**
-   - Run the Python script to start the Room Entry Alert System:
-   ```bash
-   python room_entry_alert.py
+1. **Create Pushbullet account** at pushbullet.com
+2. **Get API key** from Account Settings
+3. **Install Pushbullet app** on your phone
+4. **Update config.json**:
+   ```json
+   "pushbullet": {
+       "enabled": true,
+       "api_key": "your_pushbullet_api_key"
+   }
    ```
 
-3. **Monitor the System:**
-   - The system will only activate the pose detection and email alert during the specified time window (from 11:38 PM to 12:00 AM). If motion is detected, the alarm will sound and an email will be sent.
+### Option 3: Telegram Bot
 
-4. **Stop the Script:**
-   - Press the 'q' key to terminate the video feed and stop the script.
+1. **Create Telegram bot**:
+   - Message @BotFather on Telegram
+   - Use `/newbot` command
+   - Save the bot token
+2. **Get Chat ID**:
+   - Add bot to your chat
+   - Send a message to the bot
+   - Visit: `https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getUpdates`
+   - Find your chat_id in the response
+3. **Update config.json**:
+   ```json
+   "telegram": {
+       "enabled": true,
+       "bot_token": "your_bot_token",
+       "chat_id": "your_chat_id"
+   }
+   ```
 
-## Configuration
+## Configuration Parameters
 
-- **Time Settings:**
-  - You can modify the `start_time` and `end_time` in the script to set your preferred time range for monitoring.
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `monitoring_start` | Start time for monitoring (24h format) | "18:00" |
+| `monitoring_end` | End time for monitoring (24h format) | "08:00" |
+| `alert_cooldown` | Minimum seconds between alerts | 300 |
+| `detection_threshold` | Confidence threshold for human detection | 0.5 |
+| `min_detection_area` | Minimum pixel area for valid detection | 3000 |
 
-- **Email Settings:**
-  - Ensure the Gmail account used for sending emails has "Less secure app access" enabled in the account settings.
+## Running the Script
 
-## Important Notes
+### Manual Start
+```bash
+cd /home/pi/security_camera
+python3 security_camera.py
+```
 
-- This script uses the Gmail SMTP server for sending emails. Ensure that your Gmail account allows less secure apps to access the email service.
+### Auto-Start on Boot
 
-- The pose detection sensitivity can be adjusted by modifying the `motion_threshold` variable.
+1. **Create systemd service**:
+```bash
+sudo nano /etc/systemd/system/security-camera.service
+```
 
-## License
+2. **Add service configuration**:
+```ini
+[Unit]
+Description=Security Camera Service
+After=network.target
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/security_camera
+ExecStart=/usr/bin/python3 /home/pi/security_camera/security_camera.py
+Restart=always
+RestartSec=10
 
-## Acknowledgements
+[Install]
+WantedBy=multi-user.target
+```
 
-- The `cvzone` library for providing easy-to-use pose detection features.
-- Python's `smtplib` for enabling email functionality.
-- Pygame for providing sound playback capabilities.
+3. **Enable and start service**:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable security-camera.service
+sudo systemctl start security-camera.service
+```
+
+4. **Check status**:
+```bash
+sudo systemctl status security-camera.service
+```
 
 ## Troubleshooting
 
-- **No video feed:** Ensure that your webcam is properly connected and recognized by the system.
-- **Email not sent:** Double-check the Gmail credentials and ensure that "Less secure app access" is enabled.
-- **No sound:** Verify the path to the sound file and check that your system's speakers are functioning correctly.
+### Common Issues
+
+1. **Camera not working**:
+   ```bash
+   # Test camera
+   libcamera-hello --timeout 5000
+   ```
+
+2. **Permission errors**:
+   ```bash
+   # Add user to video group
+   sudo usermod -a -G video pi
+   ```
+
+3. **Email authentication**:
+   - Ensure 2FA is enabled
+   - Use App Password, not regular password
+   - Check "Less secure app access" if using regular password
+
+4. **View logs**:
+   ```bash
+   # Real-time logs
+   sudo journalctl -u security-camera.service -f
+   
+   # Application logs
+   tail -f /home/pi/security_camera.log
+   ```
+
+### Performance Optimization
+
+1. **Reduce resolution** for better performance:
+   - Modify camera initialization in the script
+   - Use 320x240 for faster processing
+
+2. **Adjust detection frequency**:
+   - Increase sleep time in main loop
+   - Process every nth frame
+
+3. **GPU acceleration** (if available):
+   ```bash
+   # Install OpenCV with GPU support
+   pip3 install opencv-contrib-python
+   ```
+
+## Security Considerations
+
+1. **Change default passwords**
+2. **Use strong email app passwords**
+3. **Secure your network**
+4. **Regular updates**:
+   ```bash
+   sudo apt update && sudo apt upgrade
+   ```
+
+5. **Firewall configuration**:
+   ```bash
+   sudo ufw enable
+   sudo ufw allow ssh
+   ```
+
+## Monitoring and Maintenance
+
+- **Check disk space** regularly (detection images can accumulate)
+- **Monitor logs** for errors
+- **Test alerts** periodically
+- **Backup configuration** files
+
+## File Structure
+```
+/home/pi/security_camera/
+├── security_camera.py    # Main script
+├── config.json          # Configuration file
+├── security_camera.log  # Application logs
+└── detections/          # Detection images
+    ├── detection_20241215_193045.jpg
+    └── ...
+```
